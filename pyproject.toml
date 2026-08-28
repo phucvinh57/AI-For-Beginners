@@ -1,0 +1,74 @@
+[project]
+name = "ai-for-beginners"
+version = "0.1.0"
+description = "Working environment for the AI for Beginners curriculum"
+requires-python = ">=3.12,<3.13"
+
+# Core scientific stack: enough for the symbolic-AI, perceptron and classic-ML
+# lessons, plus the plotting used everywhere.
+dependencies = [
+    "numpy>=2.1",
+    "scipy>=1.14",
+    "matplotlib>=3.9",
+    "scikit-learn>=1.5",
+    "scikit-image>=0.24",
+    "pandas>=2.2",
+    "seaborn>=0.13",
+    "opencv-python>=4.10",
+    "pillow>=10.4",
+    "imageio>=2.35",
+    "requests>=2.32",
+    "tqdm>=4.66",
+    # PyTorch is the default framework for this repo's neural-network lessons.
+    "torch>=2.11",
+    "torchvision>=0.26",
+    "torchinfo>=1.8",
+]
+
+[project.optional-dependencies]
+# Notebooks are kept as reference material; install this to open them.
+notebook = [
+    "jupyterlab>=4.2",
+    "notebook>=7.2",
+    "ipykernel>=6.29",
+    "ipywidgets>=8.1",
+]
+# Lessons 4-5 (computer vision / NLP) that use the Keras/TF track.
+tf = [
+    "tensorflow>=2.18",
+    "keras>=3.5",
+    "tensorflow-datasets>=4.9.6",
+    "tensorboard>=2.18",
+]
+# Lesson 5 NLP: embeddings, tokenizers, transformers.
+nlp = [
+    "gensim>=4.3.3",
+    "nltk>=3.9",
+    "transformers>=4.44",
+    "tokenizers>=0.20",
+    "smart-open>=7.0",
+    "datasets>=3.0",
+]
+# Lesson 6 extras: reinforcement learning and genetic algorithms.
+rl = [
+    "gymnasium[classic-control]>=1.0",
+    "pygame>=2.6",
+]
+
+[tool.uv]
+# Resolve these groups separately: the TF/gensim pins do not agree with the
+# core numpy/protobuf versions, and forcing one lockfile across all of them
+# drags the core env backwards.
+conflicts = [
+    [{ extra = "tf" }, { extra = "nlp" }],
+]
+
+# GPU wheels for the RTX A1000 (CUDA 12.x).
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }

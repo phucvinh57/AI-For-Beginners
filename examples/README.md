@@ -25,11 +25,11 @@ pip install numpy
 pip install jupyter numpy pillow tensorflow
 ```
 
-Or use the conda environment from the main curriculum:
+Or use the [uv](https://docs.astral.sh/uv/) environment from the main curriculum:
 
 ```bash
-conda env create --name ai4beg --file ../environment.yml
-conda activate ai4beg
+# From the repository root
+uv sync --extra notebook
 ```
 
 ### Running the Examples

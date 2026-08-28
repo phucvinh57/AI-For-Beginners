@@ -92,10 +92,6 @@ This guide helps you resolve common issues encountered while using or contributi
    ```bash
    pip install notebook
    ```
-   or, if using Anaconda:
-   ```bash
-   conda install notebook
-   ```
 2. **Start Jupyter Notebook.**  
    ```bash
    jupyter notebook
@@ -113,7 +109,7 @@ This guide helps you resolve common issues encountered while using or contributi
 
 **Solutions:**
 1. **Install in a clean environment.**  
-   Delete old venv/conda env and create a new one.
+   Delete the old virtual environment and create a new one.
 2. **Use exact versions.**  
    Always run:
    ```bash

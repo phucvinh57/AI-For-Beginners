@@ -368,3 +368,5 @@ MigrationBackup/
 
 # Mac-specific
 .DS_Store
+# uv
+# .venv is already ignored above; keep the lockfile committed for reproducible envs.

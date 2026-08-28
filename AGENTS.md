@@ -19,22 +19,47 @@ AI for Beginners is a comprehensive 12-week, 24-lesson curriculum covering Artif
 
 ### Primary Development Environment (Python/Jupyter)
 
-The curriculum is designed to run with Python and Jupyter Notebooks. The recommended approach is using miniconda:
+This fork uses [uv](https://docs.astral.sh/uv/). `pyproject.toml` and `uv.lock` are
+the source of truth; `requirements.txt` is kept only as an upstream reference.
 
 ```bash
 # Clone the repository
 git clone https://github.com/microsoft/ai-for-beginners
 cd ai-for-beginners
 
-# Create and activate conda environment
-conda env create --name ai4beg --file environment.yml
-conda activate ai4beg
+# Create .venv and install core + PyTorch (uv fetches Python 3.12 itself)
+uv sync
 
-# Start Jupyter Notebook
-jupyter notebook
-# OR
-jupyter lab
+# Add the notebook stack if you want to open the reference .ipynb files
+uv sync --extra notebook
 ```
+
+Lesson code is written as plain Python scripts. Run anything through `uv run`,
+which resolves the env without needing an explicit activation:
+
+```bash
+uv run python lessons/3-NeuralNetworks/03-Perceptron/main.py toy
+```
+
+Heavier framework stacks are optional extras, installed as you reach those lessons:
+
+| Extra | Covers | Command |
+|---|---|---|
+| `notebook` | JupyterLab / ipykernel / ipywidgets | `uv sync --extra notebook` |
+| `tf` | TensorFlow + Keras lesson tracks | `uv sync --extra tf` |
+| `nlp` | gensim, nltk, transformers, datasets | `uv sync --extra nlp` |
+| `rl` | gymnasium, pygame | `uv sync --extra rl` |
+
+Extras are additive **per invocation**, not cumulative: `uv sync --extra tf` alone
+uninstalls anything from a previous `--extra notebook`. List every extra you want
+in the same command:
+
+```bash
+uv sync --extra notebook --extra tf
+```
+
+`tf` and `nlp` are declared as conflicting extras — their pins disagree — so those
+two cannot appear in the same `uv sync`.
 
 ### Alternative: Using devcontainer
 
@@ -59,16 +84,18 @@ npm run lint   # Lint and fix files
 
 ### Working with Jupyter Notebooks
 
+Notebooks are reference material in this fork; new work goes into `main.py`
+scripts alongside them.
+
 1. **Local Development:**
-   - Activate conda environment: `conda activate ai4beg`
-   - Start Jupyter: `jupyter notebook` or `jupyter lab`
+   - Start Jupyter: `uv run jupyter lab` (requires `uv sync --extra notebook`)
    - Navigate to lesson folders and open `.ipynb` files
    - Run cells interactively to follow lessons
 
 2. **VS Code with Python Extension:**
    - Open repository in VS Code
    - Install Python extension
-   - VS Code automatically detects and uses the conda environment
+   - `.vscode/settings.json` points the interpreter at `${workspaceFolder}/.venv`
    - Open `.ipynb` files directly in VS Code
 
 3. **Cloud Development:**
@@ -105,14 +132,11 @@ This is an educational repository focused on learning content rather than softwa
 ### Running Code Examples:
 
 ```bash
-# Activate environment first
-conda activate ai4beg
+# Run Python scripts directly -- uv syncs the env as needed
+uv run python lessons/3-NeuralNetworks/03-Perceptron/main.py toy
 
-# Run Python scripts directly
-python lessons/4-ComputerVision/07-ConvNets/pytorchcv.py
-
-# Or execute notebooks
-jupyter notebook lessons/3-NeuralNetworks/03-Perceptron/Perceptron.ipynb
+# Or open the reference notebook
+uv run jupyter lab lessons/3-NeuralNetworks/03-Perceptron/Perceptron.ipynb
 ```
 
 ## Code Style
@@ -214,19 +238,22 @@ See `etc/CONTRIBUTING.md` for current needs:
 
 ### Required Dependencies
 
-```bash
-# Core Python packages (from requirements.txt)
-tensorflow==2.17.0
-torch (via conda)
-torchvision (via conda)
-keras==3.5.0
-opencv (via conda)
-scikit-learn
-numpy==1.26
-pandas==2.2.2
-matplotlib==3.9
-jupyter
+Declared in `pyproject.toml` and pinned exactly in `uv.lock`. The default
+(`uv sync`) install is:
+
 ```
+python 3.12
+torch + torchvision   # CUDA 12.8 wheels, from the pytorch-cu128 index
+torchinfo
+numpy, scipy, pandas
+scikit-learn, scikit-image
+matplotlib, seaborn
+opencv-python, pillow, imageio
+requests, tqdm
+```
+
+TensorFlow/Keras, the NLP stack, and the RL stack are extras — see the extras
+table under Setup Commands.
 
 ### Environment Variables
 
@@ -239,16 +266,20 @@ For Azure deployments (quiz app):
 
 ### Common Issues
 
-**Issue:** Conda environment creation fails
-- **Solution:** Update conda first: `conda update conda -y`
-- Ensure sufficient disk space (50GB recommended)
+**Issue:** `uv sync` fails to resolve
+- **Solution:** Update uv (`uv self update`), then `uv lock --refresh`
+- Ensure sufficient disk space — the CUDA torch wheels alone are ~3GB
 
 **Issue:** Jupyter kernel not found
-- **Solution:** 
+- **Solution:**
   ```bash
-  conda activate ai4beg
-  python -m ipykernel install --user --name ai4beg
+  uv sync --extra notebook
+  uv run python -m ipykernel install --user --name ai4beg
   ```
+
+**Issue:** `uv sync --extra tf` and `--extra nlp` conflict
+- **Solution:** They are declared as conflicting extras on purpose. Sync one at a
+  time; the last `uv sync` wins for what is present in `.venv`.
 
 **Issue:** GPU not detected in notebooks
 - **Solution:** 

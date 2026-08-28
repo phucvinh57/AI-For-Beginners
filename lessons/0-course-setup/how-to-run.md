@@ -4,22 +4,23 @@ This curriculum contains a lot of executable examples and labs that you would wa
 
 ## Run locally on your computer
 
-To run the code locally on your computer, a Python installation is needed. One recommendation is to install **[miniconda](https://conda.io/en/latest/miniconda.html)** - it is a rather lightweight installation that supports the `conda` package manager for different Python **virtual environments**.
+To run the code locally on your computer, a Python installation is needed. One recommendation is to install **[uv](https://docs.astral.sh/uv/)** - it is a fast Python package and project manager that can install Python itself and manage **virtual environments** for you.
 
-After you install miniconda, clone the repository and create a virtual environment to be used for this course:
+After you install uv, clone the repository and create a virtual environment to be used for this course:
 
 ```bash
 git clone http://github.com/microsoft/ai-for-beginners
 cd ai-for-beginners
-conda env create --name ai4beg --file .devcontainer/environment.yml
-conda activate ai4beg
+uv sync --extra notebook
 ```
+
+This creates a `.venv` directory in the repository. Run any code through `uv run`, which uses that environment without an explicit activation.
 
 ### Using Visual Studio Code with Python Extension
 
 This curriculum is best used when opening it in [Visual Studio Code](http://code.visualstudio.com/?WT.mc_id=academic-77998-cacaste) with [Python Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python&WT.mc_id=academic-77998-cacaste).
 
-> **Note**: Once you clone and open the directory in VS Code, it will automatically suggest you to install Python extensions. You would also have to install miniconda as described above.
+> **Note**: Once you clone and open the directory in VS Code, it will automatically suggest you to install Python extensions. You would also have to install uv as described above.
 
 > **Note**: If VS Code suggests to you to re-open the repository in a container, you should decline this to use the local Python installation. 
 
@@ -30,11 +31,11 @@ You can also use a Jupyter environment from the browser on your own computer. Bo
 To start Jupyter locally, go to the directory of the course, and execute:
 
 ```bash
-jupyter notebook
+uv run jupyter notebook
 ```
 or
 ```bash
-jupyterhub
+uv run jupyterhub
 ```
 You then can navigate to any of the `.ipynb` files, open them and start working.
 
