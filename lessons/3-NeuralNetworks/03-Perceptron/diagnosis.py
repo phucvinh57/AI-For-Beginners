@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from sklearn.decomposition import PCA
 
 
@@ -37,7 +38,7 @@ def pca_analysis(
     guessed: NDArray[np.int64],
     positive_label: int,
     negative_label: int,
-    ax: plt.Axes,
+    ax: Axes,
 ) -> None:
     """Fit PCA on just two digit classes and plot their 2-D projection, the way
     the notebook does, but with the misclassified images marked.

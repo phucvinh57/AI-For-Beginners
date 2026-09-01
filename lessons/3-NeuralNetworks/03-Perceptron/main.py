@@ -1,49 +1,12 @@
 from __future__ import annotations
 from pathlib import Path
-import gzip
 import json
-import pickle
 import numpy as np
 from numpy.typing import NDArray
-from dataclasses import dataclass
 import random
 from itertools import cycle
-from diagnosis import analyse_failures, show_samples
-
-@dataclass
-class MnistData:
-    @dataclass
-    class Data:
-        features: NDArray[np.uint8]
-        labels: NDArray[np.uint8]
-
-    train: Data
-    test: Data
-
-
-def read_mnist() -> MnistData:
-    repo_root = Path(__file__).resolve().parents[3]
-    mnist_path = repo_root / "data" / "mnist.pkl.gz"
-
-    with gzip.open(mnist_path) as digit_files:
-        MNIST = pickle.load(digit_files, encoding="latin1")
-
-    (mnist_train_x, mnist_train_y), _, (mnist_test_x, mnist_test_y) = MNIST
-
-    def to_pixels(x: NDArray[np.number]) -> NDArray[np.uint8]:
-        return (
-            (x * 255).round().astype(np.uint8) if x.max() <= 1.0 else x.astype(np.uint8)
-        )
-
-    return MnistData(
-        train=MnistData.Data(
-            features=to_pixels(mnist_train_x), labels=to_pixels(mnist_train_y)
-        ),
-        test=MnistData.Data(
-            features=to_pixels(mnist_test_x), labels=to_pixels(mnist_test_y)
-        ),
-    )
-
+from common.mnist import MnistData, read_mnist
+from .diagnosis import analyse_failures, show_samples
 
 def get_train_images(
     data: MnistData.Data, label: int
