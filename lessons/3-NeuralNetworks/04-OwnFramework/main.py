@@ -1,29 +1,22 @@
-"""The neural network framework built up in `OwnFramework.ipynb`, as a module.
-
-Layers own their parameters and their gradients; `Net` chains them and pushes
-the gradient back through in reverse. Everything runs on plain NumPy.
-"""
-
 from abc import ABC, abstractmethod
 
 import numpy as np
 from numpy.typing import NDArray
+from common.mnist import read_mnist, MnistData
 
-from common.mnist import read_mnist
 np.random.seed(0)
-
-Array = NDArray[np.floating]
+FloatArray = NDArray[np.floating]
 
 
 class Layer(ABC):
     """A step in the network: maps inputs forward, gradients backward."""
 
     @abstractmethod
-    def forward(self, x: Array, /) -> Array:
+    def forward(self, x: FloatArray, /) -> FloatArray:
         """Compute this layer's output for a batch of inputs."""
 
     @abstractmethod
-    def backward(self, dy: Array, /) -> Array:
+    def backward(self, dy: FloatArray, /) -> FloatArray:
         """Turn the gradient w.r.t. our output into the gradient w.r.t. our input."""
 
 
@@ -41,17 +34,17 @@ class Linear(UpdatableLayer):
     def __init__(self, nin: int, nout: int) -> None:
         # std of 1/sqrt(nin) keeps the output variance near the input's,
         # so activations neither explode nor vanish as layers stack up.
-        self.W: Array = np.random.normal(0, 1.0 / np.sqrt(nin), (nout, nin))
-        self.b: Array = np.zeros((1, nout))
-        self.dW: Array = np.zeros_like(self.W)
-        self.db: Array = np.zeros_like(self.b)
-        self.x: Array  # set by forward, needed by backward
+        self.W: FloatArray = np.random.normal(0, 1.0 / np.sqrt(nin), (nout, nin))
+        self.b: FloatArray = np.zeros((1, nout))
+        self.dW: FloatArray = np.zeros_like(self.W)
+        self.db: FloatArray = np.zeros_like(self.b)
+        self.x: FloatArray  # set by forward, needed by backward
 
-    def forward(self, x: Array) -> Array:
+    def forward(self, x: FloatArray) -> FloatArray:
         self.x = x
         return np.dot(x, self.W.T) + self.b
 
-    def backward(self, dz: Array) -> Array:
+    def backward(self, dz: FloatArray) -> FloatArray:
         dx = np.dot(dz, self.W)
         self.dW = np.dot(dz.T, self.x)
         self.db = dz.sum(axis=0, keepdims=True)
@@ -66,16 +59,16 @@ class Softmax(Layer):
     """Normalises scores into a probability distribution over the classes."""
 
     def __init__(self) -> None:
-        self.p: Array  # cached output, reused by backward
+        self.p: FloatArray  # cached output, reused by backward
 
-    def forward(self, z: Array) -> Array:
+    def forward(self, z: FloatArray) -> FloatArray:
         # subtracting the row max is a no-op mathematically but stops exp overflowing
         zmax = z.max(axis=1, keepdims=True)
         expz = np.exp(z - zmax)
         self.p = expz / expz.sum(axis=1, keepdims=True)
         return self.p
 
-    def backward(self, dp: Array) -> Array:
+    def backward(self, dp: FloatArray) -> FloatArray:
         pdp = self.p * dp
         return pdp - self.p * pdp.sum(axis=1, keepdims=True)
 
@@ -84,13 +77,13 @@ class Tanh(Layer):
     """Non-linearity, without which stacked Linear layers collapse into one."""
 
     def __init__(self) -> None:
-        self.y: Array
+        self.y: FloatArray
 
-    def forward(self, x: Array) -> Array:
+    def forward(self, x: FloatArray) -> FloatArray:
         self.y = np.tanh(x)
         return self.y
 
-    def backward(self, dy: Array) -> Array:
+    def backward(self, dy: FloatArray) -> FloatArray:
         return (1.0 - self.y**2) * dy
 
 
@@ -101,18 +94,43 @@ class CrossEntropyLoss:
     sits outside the `Net` rather than being appended to it.
     """
 
-    def __init__(self) -> None:
-        self.p: Array
-        self.y: NDArray[np.integer]
+    p: FloatArray  # Prediction. The network's output from Softmax
+    y: NDArray[np.integer]  # The ground truth
 
-    def forward(self, p: Array, y: NDArray[np.integer]) -> float:
-        self.p = p
-        self.y = y
+    def forward(self, p: FloatArray, y: NDArray[np.integer]) -> float:
+        # Example:
+        #       class:   0     1     2     3     4     5     6     7     8     9
+        # image 0:      [0.01, 0.02, 0.85, 0.01, 0.02, 0.03, 0.02, 0.01, 0.02, 0.01]
+        # image 1:      [0.70, 0.05, 0.03, 0.02, 0.04, 0.06, 0.03, 0.02, 0.03, 0.02]
+        # image 2:      [0.05, 0.05, 0.10, 0.05, 0.05, 0.20, 0.05, 0.03, 0.40, 0.02]
+
+        # np.arange(len(y))          →  [0, 1, 2]
+        # p[[0,1,2], [2,0,8]]        →  [0.85, 0.70, 0.40]     ← p_of_y
+        # -np.log([0.85,0.70,0.40])  →  [0.163, 0.357, 0.916]  ← per-image loss
+        # .mean()                    →  0.4785
+        self.p = p # Probability
+        self.y = y # Real labels
         p_of_y = p[np.arange(len(y)), y]
         return float(-np.log(p_of_y).mean())
 
-    def backward(self, loss: float) -> Array:
+    def backward(self, _: float) -> FloatArray:
         # d(loss)/dp: only the true-class entry of each row is non-zero.
+        #
+        # Example, continuing the batch above (y = [2, 0, 8], so N = 3):
+        #
+        # np.zeros_like(self.p)      →  3x10 of zeros
+        # [arange, y] -= 1/N         →  -0.333 at cols 2, 0, 8 (= d(loss)/d(log p))
+        #     [[0, 0, -0.333, 0, 0, 0, 0, 0,      0, 0],
+        #      [-0.333, 0,  0, 0, 0, 0, 0, 0,      0, 0],
+        #      [0, 0,      0, 0, 0, 0, 0, 0, -0.333, 0]]
+        # / self.p                   →  chain rule through the log, 1/p
+        #     [[0, 0, -0.392, 0, 0, 0, 0, 0,      0, 0],
+        #      [-0.476, 0,  0, 0, 0, 0, 0, 0,      0, 0],
+        #      [0, 0,      0, 0, 0, 0, 0, 0, -0.833, 0]]
+        #
+        # i.e. -1 / (N * p_of_y). Negative means "raise this probability", and
+        # the magnitude grows as p_of_y shrinks: image 2, least sure at 0.40,
+        # gets -0.833, over twice image 0's -0.392 at 0.85.
         dlog_softmax = np.zeros_like(self.p)
         dlog_softmax[np.arange(len(self.y)), self.y] -= 1.0 / len(self.y)
         return dlog_softmax / self.p
@@ -127,12 +145,12 @@ class Net:
     def add(self, layer: Layer) -> None:
         self.layers.append(layer)
 
-    def forward(self, x: Array) -> Array:
+    def forward(self, x: FloatArray) -> FloatArray:
         for layer in self.layers:
             x = layer.forward(x)
         return x
 
-    def backward(self, dz: Array) -> Array:
+    def backward(self, dz: FloatArray) -> FloatArray:
         for layer in self.layers[::-1]:
             dz = layer.backward(dz)
         return dz
@@ -143,8 +161,8 @@ class Net:
                 layer.update(learning_rate)
 
 
-def get_loss_acc(
-    net: Net, x: Array, y: NDArray[np.integer], loss: CrossEntropyLoss
+def get_loss_accuracy(
+    net: Net, x: FloatArray, y: NDArray[np.integer], loss: CrossEntropyLoss
 ) -> tuple[float, float]:
     p = net.forward(x)
     return loss.forward(p, y), float((np.argmax(p, axis=1) == y).mean())
@@ -152,7 +170,7 @@ def get_loss_acc(
 
 def train_epoch(
     net: Net,
-    train_x: Array,
+    train_x: FloatArray,
     train_labels: NDArray[np.integer],
     loss: CrossEntropyLoss,
     batch_size: int = 4,
@@ -170,22 +188,24 @@ def train_epoch(
 
 def train(
     net: Net,
-    train_x: Array,
-    train_labels: NDArray[np.integer],
-    test_x: Array,
-    test_labels: NDArray[np.integer],
-    n_epoch: int = 5,
+    mnist: MnistData,
+    n_epoch: int = 10,
     batch_size: int = 64,
     learning_rate: float = 0.1,
 ) -> None:
+    train_x = mnist.train.features.astype(np.float32) / 255.0
+    test_x = mnist.test.features.astype(np.float32) / 255.0
+    train_labels = mnist.train.labels.astype(np.int64)
+    test_labels = mnist.test.labels.astype(np.int64)
+
     loss = CrossEntropyLoss()
-    l, acc = get_loss_acc(net, train_x, train_labels, loss)
-    print(f"Initial       -> train loss={l:.4f} acc={acc:.4f}")
+    l, acc = get_loss_accuracy(net, train_x, train_labels, loss)
+    print(f"Initial       -> train loss={l:.4f} accuracy={acc:.4f}")
 
     for epoch in range(1, n_epoch + 1):
         train_epoch(net, train_x, train_labels, loss, batch_size, learning_rate)
-        l, acc = get_loss_acc(net, train_x, train_labels, loss)
-        vl, vacc = get_loss_acc(net, test_x, test_labels, loss)
+        l, acc = get_loss_accuracy(net, train_x, train_labels, loss)
+        vl, vacc = get_loss_accuracy(net, test_x, test_labels, loss)
         print(
             f"Epoch {epoch:2d}      -> train loss={l:.4f} acc={acc:.4f} | "
             f"test loss={vl:.4f} acc={vacc:.4f}"
@@ -196,10 +216,6 @@ def main() -> None:
     mnist = read_mnist()
     # pixels arrive as 0-255 uint8; scale to 0-1 floats so the first layer's
     # weighted sums stay in a range tanh and softmax can work with
-    train_x = mnist.train.features.astype(np.float32) / 255.0
-    test_x = mnist.test.features.astype(np.float32) / 255.0
-    train_labels = mnist.train.labels.astype(np.int64)
-    test_labels = mnist.test.labels.astype(np.int64)
 
     net = Net()
     net.add(Linear(784, 100))
@@ -207,7 +223,7 @@ def main() -> None:
     net.add(Linear(100, 10))
     net.add(Softmax())
 
-    train(net, train_x, train_labels, test_x, test_labels)
+    train(net, mnist)
 
 
 if __name__ == "__main__":
