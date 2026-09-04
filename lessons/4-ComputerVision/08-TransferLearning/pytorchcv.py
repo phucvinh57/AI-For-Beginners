@@ -16,14 +16,26 @@ import zipfile
 
 default_device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+data_train = None
+data_test = None
+train_loader = None
+test_loader = None
+
 def load_mnist(batch_size=64):
-    builtins.data_train = torchvision.datasets.MNIST('./data',
+    global data_train, data_test, train_loader, test_loader
+    data_train = torchvision.datasets.MNIST('./data',
         download=True,train=True,transform=ToTensor())
-    builtins.data_test = torchvision.datasets.MNIST('./data',
+    data_test = torchvision.datasets.MNIST('./data',
         download=True,train=False,transform=ToTensor())
-    builtins.train_loader = torch.utils.data.DataLoader(data_train,batch_size=batch_size)
-    builtins.test_loader = torch.utils.data.DataLoader(data_test,batch_size=batch_size)
-    
+    train_loader = torch.utils.data.DataLoader(data_train,batch_size=batch_size)
+    test_loader = torch.utils.data.DataLoader(data_test,batch_size=batch_size)
+    # also expose as builtins so notebooks that did `from pytorchcv import *`
+    # before calling load_mnist() can still see these names
+    builtins.data_train = data_train  # pyright: ignore[reportAttributeAccessIssue]
+    builtins.data_test = data_test  # pyright: ignore[reportAttributeAccessIssue]
+    builtins.train_loader = train_loader  # pyright: ignore[reportAttributeAccessIssue]
+    builtins.test_loader = test_loader  # pyright: ignore[reportAttributeAccessIssue]
+
 def train_epoch(net,dataloader,lr=0.01,optimizer=None,loss_fn = nn.NLLLoss()):
     optimizer = optimizer or torch.optim.Adam(net.parameters(),lr=lr)
     net.train()
@@ -35,11 +47,11 @@ def train_epoch(net,dataloader,lr=0.01,optimizer=None,loss_fn = nn.NLLLoss()):
         loss = loss_fn(out,lbls) #cross_entropy(out,labels)
         loss.backward()
         optimizer.step()
-        total_loss+=loss
+        total_loss+=loss.item()
         _,predicted = torch.max(out,1)
-        acc+=(predicted==lbls).sum()
+        acc+=(predicted==lbls).sum().item()
         count+=len(labels)
-    return total_loss.item()/count, acc.item()/count
+    return total_loss/count, acc/count
 
 def validate(net, dataloader,loss_fn=nn.NLLLoss()):
     net.eval()
@@ -48,11 +60,11 @@ def validate(net, dataloader,loss_fn=nn.NLLLoss()):
         for features,labels in dataloader:
             lbls = labels.to(default_device)
             out = net(features.to(default_device))
-            loss += loss_fn(out,lbls) 
+            loss += loss_fn(out,lbls).item()
             pred = torch.max(out,1)[1]
-            acc += (pred==lbls).sum()
+            acc += (pred==lbls).sum().item()
             count += len(labels)
-    return loss.item()/count, acc.item()/count
+    return loss/count, acc/count
 
 def train(net,train_loader,test_loader,optimizer=None,lr=0.01,epochs=10,loss_fn=nn.NLLLoss()):
     optimizer = optimizer or torch.optim.Adam(net.parameters(),lr=lr)
@@ -101,6 +113,7 @@ def plot_results(hist):
     plt.legend()
 
 def plot_convolution(t,title=''):
+    assert data_train is not None, "call load_mnist() before plot_convolution()"
     with torch.no_grad():
         c = nn.Conv2d(kernel_size=(3,3),out_channels=1,in_channels=1)
         c.weight.copy_(t)

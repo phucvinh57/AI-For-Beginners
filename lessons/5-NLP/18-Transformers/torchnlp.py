@@ -1,6 +1,6 @@
 import builtins
 import torch
-import torchtext
+import torchtext  # pyright: ignore[reportMissingImports]
 import collections
 import os
 
@@ -27,6 +27,7 @@ stoi_hash = {}
 def encode(x,voc=None,unk=0,tokenizer=tokenizer):
     global stoi_hash
     v = vocab if voc is None else voc
+    assert v is not None, "call load_dataset() before encode()"
     if v in stoi_hash.keys():
         stoi = stoi_hash[v]
     else:
@@ -50,16 +51,16 @@ def train_epoch(net,dataloader,lr=0.01,optimizer=None,loss_fn = torch.nn.CrossEn
         loss = loss_fn(out,labels) #cross_entropy(out,labels)
         loss.backward()
         optimizer.step()
-        total_loss+=loss
+        total_loss+=loss.item()
         _,predicted = torch.max(out,1)
-        acc+=(predicted==labels).sum()
+        acc+=(predicted==labels).sum().item()
         count+=len(labels)
         i+=1
         if i%report_freq==0:
-            print(f"{count}: acc={acc.item()/count}")
+            print(f"{count}: acc={acc/count}")
         if epoch_size and count>epoch_size:
             break
-    return total_loss.item()/count, acc.item()/count
+    return total_loss/count, acc/count
 
 def padify(b,voc=None,tokenizer=tokenizer):
     # b is the list of tuples of length batch_size
@@ -102,14 +103,14 @@ def train_epoch_emb(net,dataloader,lr=0.01,optimizer=None,loss_fn = torch.nn.Cro
         loss = loss_fn(out,labels) #cross_entropy(out,labels)
         loss.backward()
         optimizer.step()
-        total_loss+=loss
+        total_loss+=loss.item()
         _,predicted = torch.max(out,1)
-        acc+=(predicted==labels).sum()
+        acc+=(predicted==labels).sum().item()
         count+=len(labels)
         i+=1
         if i%report_freq==0:
-            print(f"{count}: acc={acc.item()/count}")
+            print(f"{count}: acc={acc/count}")
         if epoch_size and count>epoch_size:
             break
-    return total_loss.item()/count, acc.item()/count
+    return total_loss/count, acc/count
 
