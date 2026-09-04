@@ -40,6 +40,12 @@ tf = [
     "keras>=3.5",
     "tensorflow-datasets>=4.9.6",
     "tensorboard>=2.18",
+    # TF's pip wheel doesn't declare its CUDA/cuDNN libs as dependencies (torch's
+    # do, and that's who actually pulls them in) or bundle the ptxas/libdevice
+    # XLA needs to compile GPU kernels; this is the one piece torch doesn't
+    # already provide. All three are only located via LD_LIBRARY_PATH/PATH set
+    # before the process starts, wired up in lessons/3-NeuralNetworks/05-Frameworks/main_keras.py.
+    "nvidia-cuda-nvcc-cu12>=12.5",
 ]
 # Lesson 5 NLP: embeddings, tokenizers, transformers.
 nlp = [
